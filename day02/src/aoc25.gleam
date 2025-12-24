@@ -1,11 +1,11 @@
 import gleam/dict
 import gleam/float
 import gleam/int
-
 import gleam/io
 import gleam/list
 import gleam/order
 import gleam/result
+import gleam/set
 import gleam/string
 import simplifile as file
 
@@ -26,9 +26,6 @@ pub fn main() -> Nil {
   let lines = get_lines()
   io.println("Part 1 Result: " <> int.to_string(solve1(lines)))
   io.println("Part 2 Result: " <> int.to_string(solve2(lines)))
-
-  // calc1(#("2414", "5628"))
-  // calc1(#("12303", "56789"))
   Nil
 }
 
@@ -141,10 +138,13 @@ fn calc1(min_max_number) -> Int {
 fn solve2(lines: List(String)) -> Int {
   lines
   |> list.fold(0, fn(acc, line) {
-    let assert [min_number, max_number] = string.split(line, "-")
-    let min_digits = string.length(min_number)
-    let max_digits = string.length(max_number)
-    list.fold(list.range(min_digits, max_digits), 0, fn(acc, digits) {
+    let assert [min_number_str, max_number_str] = string.split(line, "-")
+    let min_digits = string.length(min_number_str)
+    let max_digits = string.length(max_number_str)
+    let min_number = result.unwrap(int.parse(min_number_str), 0)
+    let max_number = result.unwrap(int.parse(max_number_str), 0)
+    let solutions = set.new()
+    list.map(list.range(min_digits, max_digits), fn(digits) {
       // multipliers
       list.filter(list.range(1, digits / 2), fn(n) {
         case digits % n {
@@ -154,44 +154,39 @@ fn solve2(lines: List(String)) -> Int {
       })
       |> list.map(fn(width) {
         let first =
-          float.truncate(result.unwrap(
-            int.power(10, int.to_float(width - 1)),
-            0.0,
-          ))
+          int.to_float(width - 1)
+          |> int.power(10, _)
+          |> result.unwrap(0.0)
+          |> float.truncate()
         let last =
-          float.truncate(result.unwrap(int.power(10, int.to_float(width)), 0.0))
+          {
+            int.to_float(width)
+            |> int.power(10, _)
+            |> result.unwrap(0.0)
+            |> float.truncate()
+          }
           - 1
         echo min_number
         echo [width, first, last]
-        list.map(list.range(first, last), fn(token) {
-          let test_number = test_number(token, width, digits / width - 1)
-          echo test_number
+        list.fold_until(list.range(first, last), solutions, fn(acc, token) {
+          let test_number =
+            int.to_string(token)
+            |> string.repeat(digits / width)
+            |> int.parse()
+            |> result.unwrap(0)
+
+          case test_number {
+            n if n < min_number -> list.Continue(acc)
+            n if n > max_number -> list.Stop(acc)
+            _ -> {
+              list.Continue(set.insert(acc, test_number))
+            }
+          }
         })
+        |> echo
       })
-      0
     })
     acc
   })
   0
-}
-
-// construct Test Number from Token
-fn test_number(number, width, count) -> Int {
-  case count {
-    0 -> {
-      number
-    }
-    _ -> {
-      test_number(
-        number
-          * float.truncate(result.unwrap(
-          int.power(10, int.to_float(width)),
-          0.0,
-        ))
-          + number,
-        width,
-        count - 1,
-      )
-    }
-  }
 }
