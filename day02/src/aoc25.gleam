@@ -11,7 +11,7 @@ import simplifile as file
 
 const day = "02"
 
-const test_ = 2
+const test_ = 0
 
 const input_path = "../data/" <> day <> ".txt"
 
@@ -136,14 +136,12 @@ fn calc1(min_max_number) -> Int {
 }
 
 fn solve2(lines: List(String)) -> Int {
-  lines
-  |> list.fold(0, fn(acc, line) {
+  list.fold(lines, 0, fn(acc0, line) {
     let assert [min_number_str, max_number_str] = string.split(line, "-")
     let min_digits = string.length(min_number_str)
     let max_digits = string.length(max_number_str)
     let min_number = result.unwrap(int.parse(min_number_str), 0)
     let max_number = result.unwrap(int.parse(max_number_str), 0)
-    let solutions = set.new()
     list.map(list.range(min_digits, max_digits), fn(digits) {
       // multipliers
       list.filter(list.range(1, digits / 2), fn(n) {
@@ -166,9 +164,8 @@ fn solve2(lines: List(String)) -> Int {
             |> float.truncate()
           }
           - 1
-        echo min_number
-        echo [width, first, last]
-        list.fold_until(list.range(first, last), solutions, fn(acc, token) {
+        let results = set.new()
+        list.fold_until(list.range(first, last), results, fn(acc, token) {
           let test_number =
             int.to_string(token)
             |> string.repeat(digits / width)
@@ -184,9 +181,12 @@ fn solve2(lines: List(String)) -> Int {
           }
         })
         |> echo
+        |> set.union(results, _)
       })
     })
-    acc
+    |> list.flatten()
+    |> list.fold(set.new(), set.union)
+    |> set.fold(0, fn(acc, s) { s + acc })
+    |> int.add(acc0)
   })
-  0
 }
