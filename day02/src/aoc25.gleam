@@ -1,4 +1,3 @@
-import gleam/dict
 import gleam/float
 import gleam/int
 import gleam/io
@@ -8,6 +7,12 @@ import gleam/result
 import gleam/set
 import gleam/string
 import simplifile as file
+
+//wrong:
+// 46270373637
+
+//right:
+// 46270373595
 
 const day = "02"
 
@@ -38,6 +43,7 @@ fn get_lines() -> List(String) {
   |> result.unwrap("Failed to read input file")
   |> string.trim
   |> string.split(",")
+  |> echo
 }
 
 fn solve1(lines: List(String)) -> Int {
@@ -47,7 +53,6 @@ fn solve1(lines: List(String)) -> Int {
     #(min_number, max_number)
   })
   |> list.map(fn(tuple) { calc1(tuple) })
-  |> echo
   |> list.fold(0, fn(x, acc) { x + acc })
 }
 
@@ -142,15 +147,15 @@ fn solve2(lines: List(String)) -> Int {
     let max_digits = string.length(max_number_str)
     let min_number = result.unwrap(int.parse(min_number_str), 0)
     let max_number = result.unwrap(int.parse(max_number_str), 0)
-    list.map(list.range(min_digits, max_digits), fn(digits) {
+    set.map(set.from_list(list.range(min_digits, max_digits)), fn(digits) {
       // multipliers
-      list.filter(list.range(1, digits / 2), fn(n) {
+      set.filter(set.from_list(list.range(1, digits / 2)), fn(n) {
         case digits % n {
           0 -> True
           _ -> False
         }
       })
-      |> list.map(fn(width) {
+      |> set.map(fn(width) {
         let first =
           int.to_float(width - 1)
           |> int.power(10, _)
@@ -164,8 +169,7 @@ fn solve2(lines: List(String)) -> Int {
             |> float.truncate()
           }
           - 1
-        let results = set.new()
-        list.fold_until(list.range(first, last), results, fn(acc, token) {
+        list.fold_until(list.range(first, last), list.new(), fn(acc, token) {
           let test_number =
             int.to_string(token)
             |> string.repeat(digits / width)
@@ -173,19 +177,20 @@ fn solve2(lines: List(String)) -> Int {
             |> result.unwrap(0)
 
           case test_number {
+            n if n < 10 -> list.Continue(acc)
             n if n < min_number -> list.Continue(acc)
             n if n > max_number -> list.Stop(acc)
             _ -> {
-              list.Continue(set.insert(acc, test_number))
+              list.Continue([test_number, ..acc])
             }
           }
         })
-        |> echo
-        |> set.union(results, _)
+        |> set.from_list()
+        //        |> echo
       })
+      |> set.fold(set.new(), fn(acc, inner_set) { set.union(acc, inner_set) })
     })
-    |> list.flatten()
-    |> list.fold(set.new(), set.union)
+    |> set.fold(set.new(), fn(acc, inner_set) { set.union(acc, inner_set) })
     |> set.fold(0, fn(acc, s) { s + acc })
     |> int.add(acc0)
   })
