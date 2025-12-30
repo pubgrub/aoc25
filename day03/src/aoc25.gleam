@@ -5,7 +5,7 @@ import gleam/result
 import gleam/string
 import simplifile as file
 
-const day = "__"
+const day = "03"
 
 const test_ = 0
 
@@ -32,20 +32,30 @@ fn get_lines() -> List(String) {
     _ -> file.read(input_path)
   }
   |> result.unwrap("Failed to read input file")
-  |> string.trim
-  |> string.split(",")
-  |> echo
+  |> string.split("\n")
 }
 
 fn solve1(lines: List(String)) -> Int {
   lines
-  // Split each line into two parts at the triple space delimiter
-  |> list.map(fn(line) {
-    let assert [x, y] = string.split(line, "   ")
-    #(x, y)
+  |> list.fold(0, fn(acc, l) {
+    string.to_graphemes(l)
+    |> list.map(fn(g) {
+      int.parse(g)
+      |> result.unwrap(0)
+    })
+    |> fn(l) { acc + pick_largest(l, 0, 0) }
   })
+}
 
-  0
+fn pick_largest(line_items: List(Int), first: Int, second: Int) -> Int {
+  case line_items {
+    [] -> first * 10 + second
+    [item] if item > second -> first * 10 + item
+    [_] -> first * 10 + second
+    [item, ..rest] if item > first -> pick_largest(rest, item, 0)
+    [item, ..rest] if item > second -> pick_largest(rest, first, item)
+    [_, ..rest] -> pick_largest(rest, first, second)
+  }
 }
 
 fn solve2(lines: List(String)) -> Int {
