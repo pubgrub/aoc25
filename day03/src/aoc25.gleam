@@ -58,74 +58,44 @@ fn pick_largest(int_list: List(Int), left_digit: Int, right_digit: Int) -> Int {
 fn solve2(lines: List(String)) -> Int {
   lines
   |> list.fold(0, fn(acc, l) {
-    string.reverse(l)
+    l
     |> create_largest("")
+    |> string.slice(0, 12)
     |> int.parse
     |> result.unwrap(0)
-    |> echo
     |> fn(i) { acc + i }
   })
 }
 
-fn create_largest(str: String, so_far: String) -> String {
+fn create_largest(str: String, current: String) -> String {
   case str {
-    "" -> so_far
+    "" -> {
+      current
+    }
     _ -> {
       let #(first, rest) =
         str
-        |> string.pop_grapheme
+        |> string.pop_grapheme()
         |> result.unwrap(#("", ""))
-      case int.compare(string.length(so_far), 12) {
-        // weniger als 12 digits lang
-        order.Lt -> {
-          create_largest(rest, string.append(first, so_far))
-        }
-        // 12 digits erreicht
-        _ -> {
-          let #(first_so_far, _) =
-            so_far
-            |> string.pop_grapheme
-            |> result.unwrap(#("", ""))
-          let so_far = case string.compare(first, first_so_far) {
-            // neues digit kleiner als bisheriges erstes digit
-            order.Lt -> {
-              so_far
-            }
-            // neues digit >= bisheriges erstes digit
-            _ -> {
-              remove_first_smallest(string.append(first, so_far), "A", -1, 0)
-            }
-          }
-          create_largest(rest, so_far)
-        }
-      }
+      let current = move_left(current, first, string.length(rest))
+      create_largest(rest, current)
     }
   }
 }
 
-fn remove_first_smallest(
-  str: String,
-  smallest: String,
-  smallest_pos: Int,
-  akt_pos: Int,
-) -> String {
-  let length = string.length(str)
-  case akt_pos - length {
-    0 -> {
-      string.append(
-        string.slice(str, 0, smallest_pos),
-        string.drop_start(str, smallest_pos + 1),
-      )
+fn move_left(cur: String, char: String, remaining: Int) -> String {
+  case string.length(cur) + remaining > 11 && string.length(cur) > 0 {
+    False -> {
+      string.append(cur, char)
     }
-    _ -> {
-      let test_char = string.slice(str, akt_pos, 1)
-      case string.compare(test_char, smallest) {
-        order.Lt -> {
-          remove_first_smallest(str, test_char, akt_pos, akt_pos + 1)
+    True -> {
+      let last = string.last(cur) |> result.unwrap("")
+      case string.compare(char, last) {
+        order.Gt -> {
+          let cur = string.slice(cur, 0, string.length(cur) - 1)
+          move_left(cur, char, remaining)
         }
-        _ -> {
-          remove_first_smallest(str, smallest, smallest_pos, akt_pos + 1)
-        }
+        _ -> string.append(cur, char)
       }
     }
   }
