@@ -1,4 +1,4 @@
-import gleam/dict
+import gleam/dict.{type Dict}
 import gleam/int
 import gleam/io
 import gleam/list
@@ -36,38 +36,38 @@ fn get_lines() -> List(String) {
   |> string.split("\n")
 }
 
-fn solve1(lines: List(String)) -> Int {
-  let rows = list.length(lines)
-  let cols = string.length(list.first(lines) |> result.unwrap(""))
-  let max_idx = rows * cols - 1
-  let neighbours = [
-    #(-1, -1),
-    #(0, -1),
-    #(1, -1),
-    #(-1, 0),
-    #(1, 0),
-    #(-1, 1),
-    #(0, 1),
-    #(1, 1),
-  ]
-
-  let grid_dict =
-    lines
-    |> list.index_fold(dict.new(), fn(acc, l, y) {
-      string.to_graphemes(l)
-      |> list.index_fold(dict.new(), fn(acc2, s, x) {
-        dict.insert(acc2, #(x, y), case s {
-          "." -> False
-          _ -> True
-        })
+fn initial_dict(lines: List(String)) {
+  lines
+  |> list.index_fold(dict.new(), fn(acc, l, y) {
+    string.to_graphemes(l)
+    |> list.index_fold(dict.new(), fn(acc2, s, x) {
+      dict.insert(acc2, #(x, y), case s {
+        "." -> False
+        _ -> True
       })
-      |> dict.merge(acc, _)
     })
+    |> dict.merge(acc, _)
+  })
+}
 
-  dict.fold(grid_dict, 0, fn(acc, key, is_roll) {
-    let #(x, y) = key
+const neighbours = [
+  #(-1, -1),
+  #(0, -1),
+  #(1, -1),
+  #(-1, 0),
+  #(1, 0),
+  #(-1, 1),
+  #(0, 1),
+  #(1, 1),
+]
+
+fn solve1(lines: List(String)) -> Int {
+  let grid_dict = initial_dict(lines)
+
+  dict.fold(grid_dict, 0, fn(acc, pos, is_paper) {
+    let #(x, y) = pos
     acc
-    + case is_roll {
+    + case is_paper {
       False -> 0
       True -> {
         list.fold(neighbours, 0, fn(acc_n, t) {
@@ -95,5 +95,71 @@ fn solve1(lines: List(String)) -> Int {
 }
 
 fn solve2(lines: List(String)) -> Int {
-  0
+  let grid_dict = initial_dict(lines)
+  let new_grid = collapse(grid_dict, True)
+  let old_amount =
+    dict.fold(grid_dict, 0, fn(acc, _k, v) {
+      case v {
+        True -> acc + 1
+        False -> acc
+      }
+    })
+  let new_amount =
+    dict.fold(new_grid, 0, fn(acc, _k, v) {
+      case v {
+        True -> acc + 1
+        False -> acc
+      }
+    })
+  old_amount - new_amount
+}
+
+fn collapse(grid: Dict(#(Int, Int), Bool), changed: Bool) {
+  case changed {
+    False -> grid
+    True -> {
+      let new_grid =
+        dict.fold(grid, #(dict.new(), False), fn(acc, pos, is_paper) {
+          let #(x, y) = pos
+          let #(cur_grid, is_changed) = acc
+          case is_paper {
+            False -> {
+              let next_grid = dict.insert(cur_grid, pos, False)
+              #(next_grid, is_changed)
+            }
+            True -> {
+              list.fold(neighbours, 0, fn(acc_n, t) {
+                case dict.get(grid, #(x + t.0, y + t.1)) {
+                  Ok(is_blocked) -> {
+                    case is_blocked {
+                      False -> acc_n
+                      True -> acc_n + 1
+                    }
+                  }
+                  Error(Nil) -> {
+                    acc_n
+                  }
+                }
+              })
+              |> fn(num_neighbours) {
+                case num_neighbours {
+                  n if n < 4 -> {
+                    let next_grid = dict.insert(cur_grid, pos, False)
+                    #(next_grid, True)
+                  }
+                  _ -> {
+                    let next_grid = dict.insert(cur_grid, pos, True)
+                    #(next_grid, is_changed)
+                  }
+                }
+              }
+            }
+          }
+        })
+      case new_grid.1 {
+        False -> new_grid.0
+        True -> collapse(new_grid.0, new_grid.1)
+      }
+    }
+  }
 }
