@@ -2,6 +2,7 @@ import gleam/int
 import gleam/io
 import gleam/list
 import gleam/result
+import gleam/set
 import gleam/string
 import simplifile as file
 
@@ -79,5 +80,58 @@ fn solve1(lines: List(String)) -> Int {
 }
 
 fn solve2(lines: List(String)) -> Int {
-  0
+  let #(ranges, _avail) = get_data(lines)
+  //echo ranges
+  combine(ranges)
+  |> list.unique
+  |> list.sort(fn(a, b) { int.compare(a.0, b.0) })
+  |> list.fold(0, fn(acc, t) { acc + t.1 - t.0 + 1 })
+}
+
+fn combine(ranges: List(#(Int, Int))) -> List(#(Int, Int)) {
+  let perms = list.combinations(list.unique(ranges), 2)
+  // neue ranges, geändert, zu löschende ranges
+  let result =
+    list.fold(perms, #(list.new(), False, list.new()), fn(acc, p) {
+      let res = get_overlap(p)
+      case list.length(res) {
+        2 -> {
+          #(list.append(acc.0, res), acc.1, acc.2)
+        }
+        1 -> {
+          let to_del =
+            list.filter(p, fn(a) {
+              a != result.unwrap(list.first(res), #(0, 0))
+            })
+          #(list.append(acc.0, res), True, list.append(acc.2, to_del))
+        }
+        _ -> panic as "wrong number of results from get_overlap"
+      }
+    })
+  let delete_set = set.from_list(result.2)
+  let new_list = list.filter(result.0, fn(r) { !set.contains(delete_set, r) })
+  case result.1 {
+    True -> combine(list.unique(new_list))
+    False -> new_list
+  }
+}
+
+fn get_overlap(perm) {
+  case perm {
+    [p1, p2] -> {
+      let #(min1, max1) = p1
+      let #(min2, max2) = p2
+      case min1 <= max2 + 1 && min2 <= max1 + 1 {
+        True -> {
+          let min = int.min(min1, min2)
+          let max = int.max(max1, max2)
+          [#(min, max)]
+        }
+        False -> {
+          [p1, p2]
+        }
+      }
+    }
+    _ -> panic as "no tuple found"
+  }
 }
